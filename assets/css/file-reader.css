@@ -1,0 +1,121 @@
+/* Default Element Styles" */
+* {
+	margin:0;
+}
+
+html, body {
+	height: 100%;
+	font-family: 'Arial', sans-serif;
+}
+
+article {
+}
+
+aside {
+	background-color: yellow;
+	min-height: 300px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+	font-family: 'Montserrat', serif;
+	margin-bottom: 10px;
+}
+
+p {
+	margin-bottom: 10px;
+}
+
+h1 {
+	font-size: 32px;
+	font-weight: 400;
+}
+
+h2 {
+	font-size: 26px;
+	font-weight: 300;
+}
+
+/*Wrapper, Header, & Footer */
+.content-wrapper {
+	min-height: calc(100% - 75px);
+	margin-bottom: -150px;
+}
+
+.content-wrapper:after {
+	content: "";
+	display: block;
+}
+
+.footer-wrapper{
+	height: 150px;
+}
+
+.footer-wrapper {
+	background-color: darkblue;
+}
+
+.header-wrapper {
+	height: 75px;
+	background-color: darkblue;
+}
+
+.content-row {
+	margin: 0 auto;
+	border: 1px dashed red;
+	width: 80%;
+}
+
+
+/* Column Styling */
+.col-lg-12 {
+	width: 100%;
+}
+
+.col-lg-11,
+.col-lg-10,
+.col-lg-9,
+.col-lg-8,
+.col-lg-7,
+.col-lg-6,
+.col-lg-5,
+.col-lg-4,
+.col-lg-3,
+.col-lg-2,
+.col-lg-1 {
+	display:inline-block;
+	margin-left:0.5%;
+	margin-right:0.5%;
+}
+
+.col-lg-1 {	width: 8%; }
+.col-lg-2 {	width: 16%;}
+.col-lg-3 {	width: 24%;}
+.col-lg-4 {	width: 33%;}
+.col-lg-5 {	width: 40%;}
+.col-lg-6 {	width: 49%;}
+.col-lg-7 {	width: 58%;}
+.col-lg-8 {	width: 65%;}
+.col-lg-9 {	width: 74%;}
+.col-lg-10 { width: 82%;}
+.col-lg-11 { width: 90%; }
+
+.float-right {
+	float: right;
+}
+
+.float-left{
+	float:left;
+}
+
+.clearfix:after {
+	content: " "; /* Older browser do not support empty content */
+   visibility: hidden;
+   display: block;
+   height: 0;
+   clear: both;
+}
