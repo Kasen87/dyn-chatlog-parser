@@ -12,8 +12,7 @@ article {
 }
 
 aside {
-	background-color: yellow;
-	min-height: 300px;
+
 }
 
 h1,
@@ -38,6 +37,16 @@ h1 {
 h2 {
 	font-size: 26px;
 	font-weight: 300;
+	margin-bottom: 5px;
+}
+
+h3 {
+	font-size: 20px;
+	font-weight: 300;
+}
+
+hr {
+	margin: 5px 0 15px 0;
 }
 
 /*Wrapper, Header, & Footer */
@@ -60,14 +69,19 @@ h2 {
 }
 
 .header-wrapper {
-	height: 75px;
+	height: 100px;
 	background-color: darkblue;
+	padding: 1% 0;
+}
+
+.header-wrapper > hr {
+	width: 20%;
 }
 
 .content-row {
 	margin: 0 auto;
-	border: 1px dashed red;
 	width: 80%;
+	padding: 4% 0;
 }
 
 
@@ -118,4 +132,15 @@ h2 {
    display: block;
    height: 0;
    clear: both;
+}
+
+
+.title{
+	color: #fff;
+	margin-bottom: 0;
+}
+
+.subtitle {
+	color: #fff;
+	margin-top: -10px;
 }
