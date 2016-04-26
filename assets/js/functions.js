@@ -8,7 +8,7 @@
 // b.setAttribute('data-useragent',  navigator.userAgent);
 // b.setAttribute('data-platform', navigator.platform);
 
-
+	
 function initPage(){
 
 	var files;
@@ -50,7 +50,7 @@ function initPage(){
 
 		var _r = result; 	//register incoming FileReader Results
 		var _lower_r;		//converted to Lower case
-		var _split_lr;		//split the lines of the result into an array
+		var _split_lr = new Array();		//split the lines of the result into an array
 		var _sorted_slr;		//sorted and matched sections of the original array
 
 
@@ -58,7 +58,9 @@ function initPage(){
 
 			_lower_r = _r.toLowerCase();  //Convert the string to lowercase
 			_split_lr = splitString(_lower_r);  //Split the string up into an array
+			console.log("Split Array:", _split_lr)
 			_sorted_slr = sortArray(_split_lr);
+			console.log("Sorted Array:", _sorted_slr)
 
 			console.log(_sorted_slr);
 			console.log("Sending to CSV");
@@ -95,7 +97,8 @@ function initPage(){
 	function splitString(str){
 
 		var workingText = str;
-		var tempStorage = workingText.split("\n")			//createArrayForFile();
+		var splitEnds = new RegExp('\\n', 'g')
+		var tempStorage = workingText.split(splitEnds)			//createArrayForFile();
 
 		return tempStorage;
 	}
@@ -109,6 +112,8 @@ function initPage(){
 		var testTime_re = new RegExp('(\\d+\\:\\d+\\:\\d+)','g');
 
 		while ((m = withinBrackets_re.exec(raw_str)) !== null) {
+
+			console.log("This is M:", m);
 
 			if( testTime_re.exec(m[1]) !== null) {
 				tempItem.time = (m[1]);
@@ -148,6 +153,9 @@ function initPage(){
 					tempItem.details = "No Match to RegExp:: Parse Error";
 					break;
 				}		
+			} else{
+				tempItem.user = "Parse Error";
+				tempItem.details = m[1];
 			}
 			
 			if (m.index === withinBrackets_re.lastIndex){
@@ -166,7 +174,7 @@ function initPage(){
 			})
 		}
 
-		//console.log(o.chatLogItem);
+		console.log(o.chatLogItem);
 
 	}
 
@@ -226,7 +234,7 @@ function initPage(){
     var CSV = '';    
     //Set Report title in first row or line
     
-    CSV += ReportTitle + '\r\n\n';
+    //CSV += ReportTitle + '\r\n\n';
 
     //This condition will generate the Label/Header
     if (ShowLabel) {
