@@ -10,21 +10,12 @@
 
 	
 function initPage(){
-
 	var files;
-
-	$("#fileUploads").on("change", prepareUpload);
-
-	//Grab the files and set them to the variable
-	function prepareUpload(event)
-	{
-		files = event.target.files[0];
-		console.log(files);
-	}
+	//If they use the filepicker, set the file var to the selected value
+	$("#fileUploads").on("change", function(event){files = event.target.files[0];});
 
 	//When Submit button is pressed, start loading file into FileReader API
 	$("#submitFile").click(function(e){
-
 		e.preventDefault();
 
 		var reader = new FileReader();
@@ -39,329 +30,260 @@ function initPage(){
 
 		reader.onloadend = function(evt){
 			console.log("File "+files+" has been uploaded.");
-
-			processFile(reader.result);
+			processFile(reader.result); //Start Processing the File
 		}
-
 	});
-
 	//Process the file in steps
 	function processFile(result){
-
 		var _r = result; 	//register incoming FileReader Results
-		var _lower_r;		//converted to Lower case
-		var _split_lr = new Array();		//split the lines of the result into an array
-		var _sorted_slr;		//sorted and matched sections of the original array
-
-
+		
+		//Ensure that there's actually some text here
 		if ( _r != null){
+			//Let's convert it to lowercase values first (makes matching easier)
+			_r = _r.toLowerCase();	//#workingFine
 
-			_lower_r = _r.toLowerCase();  //Convert the string to lowercase
-			_split_lr = splitString(_lower_r);  //Split the string up into an array
-			console.log("Split Array:", _split_lr)
-			_sorted_slr = sortArray(_split_lr);
-			console.log("Sorted Array:", _sorted_slr)
+			//Let's split the string up by using the \n values
+			var _sr = new Array();
+				_sr = splitString(_r); 	//#workingFine
 
-			console.log(_sorted_slr);
-			console.log("Sending to CSV");
-
-			JSONToCSVConvertor(_sorted_slr.chatLogItem, "ChatLog_Parse", true);
-
+			//Let's begin the matching process -- The return value is a JS object with "ChatLogItem" array inside of it -- Each array value is an object
+			sortArray(_sr);
+			//Send the file to the JSON to CSVConverter
+			//JSONToCSVConvertor(_sorted_sr.obj)
 		}else {
-
-			alert("Something isn't right!");
-
+			alert("Something isn't right here...");
 		}
 	}
-
+	//actually split the File itself.
+	function splitString(str){
+		var workingText = str;
+		var splitEnds = new RegExp('\\n', 'g')
+		return workingText.split(splitEnds)			//createArrayForFile();
+	}
+	//Sort through the lowercase array values to match as necessary
 	function sortArray(arr){
 		var raw_arr = arr;
-		var obj = {
-			chatLogItem: []
-		};
+		var obj = {	chatLogItem: []	};		//Create the js object to store all of the values
 
 		console.log("Starting Sort");
 		
 		for ( var i = 0; i < raw_arr.length; i++){
-			matchString(raw_arr[i], obj);  //send in one line of the array (a string)
+			obj.chatLogItem[i] = { timestamp: "", user: "", type: "", details: "" };
+			matchString(raw_arr[i], obj.chatLogItem[i]);  //send in one line of the array at a time to be matched
+			console.log(obj.chatLogItem[i]);
 		}
-
 		console.log("Finished");
 
-		return obj;
-
-
+		//Finish the process up by converting it to CSV and downloading it to the computer
+		JSONToCSVConvertor(obj.chatLogItem, "Chatlog_Parsed", true);
 	}
 
-	//actually split the File itself.
-	function splitString(str){
-
-		var workingText = str;
-		var splitEnds = new RegExp('\\n', 'g')
-		var tempStorage = workingText.split(splitEnds)			//createArrayForFile();
-
-		return tempStorage;
-	}
-
+	//Begin matching the string with values
 	function matchString(str, obj){
 		var raw_str = str;
-							var tempItem = new Object;
-							var temp_o = new Object;
-		var o = obj;	//json object created and passed in
-		var withinBrackets_re = new RegExp('[^\\b\\s](?!\\[)(.*?)\](?!\\]:)', 'g');	//gather everything in brackets
-		var testTime_re = new RegExp('(\\d+\\:\\d+\\:\\d+)','g');
-
-		while ((m = withinBrackets_re.exec(raw_str)) !== null) {
-
-			console.log("This is M:", m);
-
-			if( testTime_re.exec(m[1]) !== null) {
-				tempItem.time = (m[1]);
-			}
-
-			if (m[1].match("authenticator")){
-				tempItem.user= "Hidden";
-				tempItem.type = "User Authentication"; //Type of Event
-				tempItem.details = "Hidden";
-				//console.log("Temp:"+tempItem.user)
-				break;
-			} else if (m[1].match("server thread/info")) {
-				temp_o = matchDetails(raw_str);
-				if (temp_o != null) {
-					tempItem.user = temp_o.user;
-					tempItem.type = temp_o.type;
-					tempItem.details = temp_o.details;
-					break;
-
-					console.log("Type:"+tempItem.type);
-				} else{	
-					console.log("Error Parsing Details");
-					break;
+		//Let's use the object that we created in the previous sortArray function
+		var o = obj;
+		//Let's create an object with all of the reg exp values we'll need to test against
+		var reObj = createRegExpObj();
+		while ((m = reObj.startLineBracketsRE.exec(raw_str)) !== null){
+			//Check to see if it contains a time value
+			if(reObj.timeRE.test(m[1])) {
+				o.timestamp = m[1];
+				console.log(o.timestamp);
+			}else{
+				//Whatever is in the bracket's does not resemble a time stamp
+				//Figure out what it is before falling back to the default
+				if(m[1].match("authenticator")){
+					o.user = "Hidden";
+					o.type = "Authentication";
+					o.details = "Redacted for Security";
+				} else if (m[1].match("server thread/warn")){
+					o.user = "Server";
+					o.type = "Warning";
+					if ((d = reObj.afterColonRE.exec(raw_str)) !== null) {
+						o.details = d[1].trim();
+					} else {
+						o.details = "Parser Error #ms001: Start String ==> "+ raw_str +"<== End String";
+					}
+				} else if (m[1].match("server thread/info")){
+					o.user = "Server";
+					o.type = "Info";
 				}
-
-			} else if (m[1].match("server thread/warn")) {
-				tempItem.user = "Server";
-				tempItem.type = "Warning";
-	
-				var afterColon_re = new RegExp('\]:\(\.\+\)','g'); 		//gather everything after the colon
-				
-				if ((d = afterColon_re.exec(raw_str)) !== null) {
-					var test_str = d[1];
-					tempItem.details = test_str;
-					break;
-				}else{
-					tempItem.details = "No Match to RegExp:: Parse Error";
-					break;
-				}		
-			} else{
-				tempItem.user = "Parse Error";
-				tempItem.details = m[1];
 			}
-			
-			if (m.index === withinBrackets_re.lastIndex){
-				withinBrackets_re.lastIndex++;
+			//If there are more bracket values, let's set the index value at the end of the last one and keep going
+			if (m.index === reObj.startLineBracketsRE.lastIndex){
+				reObj.startLineBrackets.lastIndex++;
 			}
+		} //End of While loop for bracket testing
 
-
+		//Once we've finished checking all of the brackets for extra info
+		//let's go through go through detail section to see what's happening
+		if((o.type == "" && o.user == "") || (o.type == "Info" && o.user == "Server"))  {
+			//run the gamut of tests
+			matchDetails(raw_str, o, reObj);
+		} else {
+			//Let's get out of here Jim!
 		}
-
-		if (tempItem.user !== undefined && tempItem.user !== 'null'){
-			o.chatLogItem.push({
-			"Server Time" : tempItem.time,
-			"User": tempItem.user,
-			"Event Type" : tempItem.type,
-			"Event Details" : tempItem.details
-			})
-		}
-
-		console.log(o.chatLogItem);
-
 	}
 
-
-
-	function matchDetails(str){
+	//Function to create a reg exp js object that stores each of the regexp values
+	function createRegExpObj(){
+		var obj = {
+			startLineBracketsRE: /\[(.*?)\]/g,
+			timeRE: new RegExp('((^.*)\\d+\:\\d+\:\\d+)','g'),
+			afterColonRE: /]:\s(.+)(?=$)/g,
+			speakingRE: new RegExp('[^\:]<(.*?)>', 'g'),
+			spokenRE: new RegExp('>(.+)', 'g'),
+			connectedCampsSpeakerRE: new RegExp('([\\w]+)(?=\:)', 'g'),
+			connectedCampsAfterTimeRE: new RegExp('\]\\s(.*)', 'g'),
+			conncetedCampsSpeechRE: new RegExp('[^:\\w](.+)(?=$)', 'g'),
+			userAchieveRE: new RegExp('(.*?[^\\w])(?=(?:has just earned the achievement))','g'),
+			achieveRE: /(?=(?:has just earned the achievement)).*\[(.*?)\]/g,
+			disconRE: /name=(.*?),/g,
+			conRE: /(.*?)(?=\[\/\d)/g,
+		}
+		return obj;
+	}
+	//Match the content after the colon
+	//Should return the object with o = { user: "data", type: "data", details: "data"};
+	function matchDetails(str, obj, reObj){
 		var s = str;
-		var obj = new Object;
-		var afterColon_re = new RegExp('\]:\(\.\+\)','g'); 		//gather everything after the colon
-		var speaking_re = new RegExp('\[\^:\]<\(\.\*\?\)>', 'g')			//Check for Speaking
-		var spoken_re = new RegExp('>\(\.\+\)', 'g')
-		var userAchieve_re = new RegExp('\(\.\*\?\[\^\\w\]\)\(\?=\(\?:has just earned the achievement\)\)','g')
-		var achieve_re = new RegExp('\(\?=\(\?:has just earned the achievement\)\)\.\*\\\[\(\.\*\?\)\\\]', 'g')
+		var o = obj;
+		var re = reObj;
+		//First, let's see if there's a ']:' that splits the timestamp and the details
+		if ((afterColon = re.afterColonRE.exec(s)) !== null){
+			//Is someone talking?
+			if ((speaker = re.speakingRE.exec(afterColon[1])) !== null){
+				//If so, let's figure out who it is and what they said
+				var det = re.spokenRE.exec(afterColon[1]);
+				//Then set all the proper values
+				o.user = speaker[1].trim();
+				o.type = "Talking";
+				o.details = det[1].trim();
 
-		if ((d = afterColon_re.exec(s)) !== null) {
-			var test_str = d[1];
-			var speaker = speaking_re.exec(test_str);
-
-			//Check to see if it was a person speaking first
-			if (speaker !== null){					
-				var words = spoken_re.exec(test_str);
-				obj.user = speaker[1].trim();
-				obj.type = "Talking";
-				obj.details = words[1].trim();
-			} else {
-				var det = test_str.trim();
-
-				//console.log("Det :"+det)
-				
-				//If it wasn't a person speaking, see which other type of server info it was
-				//Achievement get?
-				if ( i = det.match("earned the achievement") !== null ) {
-
-					var cur_User = userAchieve_re.exec(det);
-					var cur_Achieve = achieve_re.exec(det);
-
-					obj.user = cur_User[1].trim(); //Grabs user name of achievement earned!
-					obj.type = "Achievement";
-					obj.details = cur_Achieve[1].trim();
+				if(o.user === "null"){
+					nextSpeaker = re.disconRE.exec(afterColon[1]);
+					o.user = nextSpeaker[1].trim();
+					o.type = "Disconnected";
+					o.details = afterColon[1];
 				}
+			} else if (afterColon[1].match("earned the achievement")) {
+				var _u = re.userAchieveRE.exec(afterColon[1]);
+				var _ua = re.achieveRE.exec(afterColon[1]);
+				
+				o.user = _u[1].trim();
+				o.type = "Achievement";
+				o.details = _ua[1].trim();
+			} else if (afterColon[1].match("logged in with entity id")){
+				nextLog = re.conRE.exec(afterColon[1]);
+				o.user = nextLog[1].trim();
+				o.type = "Connected";
+				o.details = afterColon[1];
+			} else {
+				console.log("String is: "+s);
+				o.details = afterColon[1].trim();
 			}
-		} else	{
-			console.log("Error in Details: "+d)
-			return null;
+		} else if ((details = re.connectedCampsAfterTimeRE.exec(s)) !== null) {
+			//There's something else that separates the timestamps and the details
+			//This was added in for connected camps chat log extras
+			if ((speaker = re.connectedCampsSpeakerRE.exec(details[1])) !== null) {
+				o.user = speaker[1].trim();
+			} else {
+				o.user = "Parser Error: #md001";
+			}
+
+			if ((spoken = re.conncetedCampsSpeechRE.exec(details[1])) !== null){
+				o.details = spoken[1].trim();
+				o.type = "Talking";
+			} else{
+				o.type = "Error";
+				o.details = "Parser Error: #md002";
+			}
+
+		} else {
+			//I have no clue what this is
+			o.user = "User Error";
+			o.type = "Type Error";
+			o.details = "Parser Error: #md003 || Start String ==> "+s+" <== End String";
 		}
-		return obj; //send back the array of text items
 
+		return o; //send back the array of text items
 	}
-
 	//Function from jsFiddle 
 	//Convert JSON to CSV
-
 	function JSONToCSVConvertor(JSONData, ReportTitle, ShowLabel) {
-    //If JSONData is not an object then JSON.parse will parse the JSON string in an Object
-    var arrData = typeof JSONData != 'object' ? JSON.parse(JSONData) : JSONData;
-    
-    var CSV = '';    
-    //Set Report title in first row or line
-    
-    //CSV += ReportTitle + '\r\n\n';
+		//If JSONData is not an object then JSON.parse will parse the JSON string in an Object
+		var arrData = typeof JSONData != 'object' ? JSON.parse(JSONData) : JSONData;
 
-    //This condition will generate the Label/Header
-    if (ShowLabel) {
-        var row = "";
-        
-        //This loop will extract the label from 1st index of on array
-        for (var index in arrData[0]) {
-            
-            //Now convert each value to string and comma-seprated
-            row += index + ',';
-        }
+		var CSV = '';    
+		//Set Report title in first row or line
 
-        row = row.slice(0, -1);
-        
-        //append Label row with line break
-        CSV += row + '\r\n';
-    }
-    
-    //1st loop is to extract each row
-    for (var i = 0; i < arrData.length; i++) {
-        var row = "";
-        
-        //2nd loop will extract each column and convert it in string comma-seprated
-        for (var index in arrData[i]) {
-            row += '"' + arrData[i][index] + '",';
-        }
+		//CSV += ReportTitle + '\r\n\n';
 
-        row.slice(0, row.length - 1);
-        
-        //add a line break after each row
-        CSV += row + '\r\n';
-    }
+		//This condition will generate the Label/Header
+		if (ShowLabel) {
+		    var row = "";
+		    
+		    //This loop will extract the label from 1st index of on array
+		    for (var index in arrData[0]) {
+		        
+		        //Now convert each value to string and comma-seprated
+		        row += index + ',';
+		    }
 
-    if (CSV == '') {        
-        alert("Invalid data");
-        return;
-    }   
-    
-    //Generate a file name
-    var fileName = "MyReport_";
-    //this will remove the blank-spaces from the title and replace it with an underscore
-    fileName += ReportTitle.replace(/ /g,"_");   
-    
-    //Initialize file format you want csv or xls
-    var uri = 'data:text/csv;charset=utf-8,' + escape(CSV);
-    
-    // Now the little tricky part.
-    // you can use either>> window.open(uri);
-    // but this will not work in some browsers
-    // or you will not get the correct file extension    
-    
-    //this trick will generate a temp <a /> tag
-    var link = document.createElement("a");    
-    link.href = uri;
-    
-    //set the visibility hidden so it will not effect on your web-layout
-    link.style = "visibility:hidden";
-    link.download = fileName + ".csv";
-    
-    //this part will append the anchor tag and remove it after automatic click
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-
-
-};
-
-
-//Scratch Pad
-
-/*
-	
-	function escapeRegExp(str) {
-  		return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
-	}
-
-				if (m[1].match("authenticator")){  
-				continue;
-			}
-			else if (m[1].match("server thread/info")) {
-				console.log(m[1]); //Works
-			}
-			else	
-
-	function createJSON(){
-		var chatJSON = {
-			chatlogData: []
+		    row = row.slice(0, -1);
+		    
+		    //append Label row with line break
+		    CSV += row + '\r\n';
 		}
 
-		return chatJSON;
+		//1st loop is to extract each row
+		for (var i = 0; i < arrData.length; i++) {
+		    var row = "";
+		    
+		    //2nd loop will extract each column and convert it in string comma-seprated
+		    for (var index in arrData[i]) {
+		        row += '"' + arrData[i][index] + '",';
+		    }
+
+		    row.slice(0, row.length - 1);
+		    
+		    //add a line break after each row
+		    CSV += row + '\r\n';
+		}
+
+		if (CSV == '') {        
+		    alert("Invalid data");
+		    return;
+		}   
+
+		//Generate a file name
+		var fileName = "MyReport_";
+		//this will remove the blank-spaces from the title and replace it with an underscore
+		fileName += ReportTitle.replace(/ /g,"_");   
+
+		//Initialize file format you want csv or xls
+		var uri = 'data:text/csv;charset=utf-8,' + escape(CSV);
+
+		// Now the little tricky part.
+		// you can use either>> window.open(uri);
+		// but this will not work in some browsers
+		// or you will not get the correct file extension    
+
+		//this trick will generate a temp <a /> tag
+		var link = document.createElement("a");    
+		link.href = uri;
+
+		//set the visibility hidden so it will not effect on your web-layout
+		link.style = "visibility:hidden";
+		link.download = fileName + ".csv";
+
+		//this part will append the anchor tag and remove it after automatic click
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
 	}
 
 
 
-var employees = {
-    accounting: []
 };
-
-for(var i in someData) {
-
-    var item = someData[i];
-
-    employees.accounting.push({ 
-        "firstName" : item.firstName,
-        "lastName"  : item.lastName,
-        "age"       : item.age 
-    });
-} 
-
-
-
-		var workingText = str;
-		var matchedArr = workingText.match(/[^>]*?(?=<)/g);
-		var listResults = new Array;
-		var re = new RegExp("(\d+\/\d+\/\d+)");
-
-		for (i = 0; i < matchedArr.length; i++) {
-			if (matchedArr[i].length > 1 && matchedArr[i] != "report a problem"){
-				if (re.test(matchedArr[i])) {
-					
-				}else{
-					listResults.push(matchedArr[i]);
-				}
-					
-				}
-		}
-
-		return listResults;*/
